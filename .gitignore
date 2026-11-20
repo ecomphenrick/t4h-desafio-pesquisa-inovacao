@@ -1,2 +1,5 @@
 # Configurações locais do agente de IA (Claude Code), não fazem parte do desafio
 .claude/
+
+# Anotações e relatórios pessoais, fora do repositório
+pessoal/
