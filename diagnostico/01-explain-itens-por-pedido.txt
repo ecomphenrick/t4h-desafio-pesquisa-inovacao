@@ -1,0 +1,20 @@
+# EXPLAIN ANALYZE da consulta de itens da rota GET /clientes/:id/pedidos (api/src/rotas.js:76)
+# data: 2026-11-19 22:08:44 -0300   commit: 9d905c3
+# condicao: banco ocioso (sem teste de carga rodando), limites originais do compose
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT * FROM itens_pedido WHERE pedido_id = 1 ORDER BY id;"
+
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=104.054..106.960 rows=2 loops=1)
+   Sort Key: id
+   Sort Method: quicksort  Memory: 25kB
+   ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=99.269..106.934 rows=2 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=96.234..97.236 rows=1 loops=3)
+               Filter: (pedido_id = 1)
+               Rows Removed by Filter: 499999
+ Planning Time: 0.577 ms
+ Execution Time: 107.028 ms
+(11 rows)
+
