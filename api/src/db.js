@@ -1,4 +1,4 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
 const config = {
   host: process.env.DB_HOST || 'localhost',
@@ -7,15 +7,18 @@ const config = {
   database: process.env.DB_NAME || 'loja',
 };
 
+// Pool de conexões reaproveitadas, em vez de abrir e fechar uma conexão por consulta.
+// Tamanho máximo: o padrão do node-postgres (10).
+const pool = new Pool(config);
+
+// Erro numa conexão ociosa do pool não deve derrubar a API.
+pool.on('error', (erro) => {
+  console.error('erro em conexão ociosa do pool', erro);
+});
+
 async function consultar(sql, parametros = []) {
-  const cliente = new Client(config);
-  await cliente.connect();
-  try {
-    const resultado = await cliente.query(sql, parametros);
-    return resultado.rows;
-  } finally {
-    await cliente.end();
-  }
+  const resultado = await pool.query(sql, parametros);
+  return resultado.rows;
 }
 
 module.exports = { consultar };
