@@ -1,0 +1,27 @@
+# Rota GET /relatorios/vendas-por-dia (api/src/rotas.js:158-165). A carga pede periodos de 7 dias entre 2024-01-01 e o fim de 2025 (carga/teste-carga.js:54-55).
+# data: 2026-11-20 11:35:03 -0300   commit: a459be4
+# condicao: banco ocioso (sem teste de carga), com os indices das mudancas 01 a 03
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "SELECT count(*) AS pedidos_no_periodo FROM pedidos WHERE criado_em::date BETWEEN '2024-03-01' AND '2024-03-07';"
+ pedidos_no_periodo 
+--------------------
+               4793
+(1 row)
+
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos FROM pedidos p JOIN itens_pedido i ON i.pedido_id = p.id WHERE p.criado_em::date BETWEEN '2024-03-01' AND '2024-03-07' AND p.status <> 'cancelado';"
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.43..33710.38 rows=6759 width=298) (actual time=0.420..307.284 rows=12951 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Nested Loop  (cost=0.43..32034.48 rows=2816 width=298) (actual time=0.199..296.502 rows=4317 loops=3)
+         ->  Parallel Seq Scan on pedidos p  (cost=0.00..25521.50 rows=939 width=290) (actual time=0.167..285.816 rows=1438 loops=3)
+               Filter: ((status <> 'cancelado'::text) AND ((criado_em)::date >= '2024-03-01'::date) AND ((criado_em)::date <= '2024-03-07'::date))
+               Rows Removed by Filter: 165228
+         ->  Index Scan using itens_pedido_pedido_id_idx on itens_pedido i  (cost=0.43..6.90 rows=4 width=12) (actual time=0.006..0.006 rows=3 loops=4315)
+               Index Cond: (pedido_id = p.id)
+ Planning Time: 5.730 ms
+ Execution Time: 308.421 ms
+(11 rows)
+
