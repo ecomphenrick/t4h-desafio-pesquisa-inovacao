@@ -1,0 +1,11 @@
+-- Mudança 03: índice composto em pedidos(status, criado_em DESC, id DESC)
+--
+-- Diagnóstico: diagnostico/04-explain-pedidos-por-status.txt mostra que a listagem da rota
+-- GET /pedidos?status=&pagina= (api/src/rotas.js:113-116) lê os ~300 mil pedidos do status,
+-- ordena todos em disco (Sort Method: external merge) e só então aplica LIMIT 20 OFFSET n.
+--
+-- Com o índice na mesma ordem do WHERE + ORDER BY (igualdade primeiro, depois a ordenação),
+-- o banco lê as entradas já ordenadas e para no LIMIT, sem etapa de ordenação.
+-- Fontes: PostgreSQL 16 Docs, 11.4 Indexes and ORDER BY; Milan Jovanović,
+-- "From 17ms to 0.04ms: How to Design the Right SQL Index".
+CREATE INDEX pedidos_status_criado_em_id_idx ON pedidos (status, criado_em DESC, id DESC);
