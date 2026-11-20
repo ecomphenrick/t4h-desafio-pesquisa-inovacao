@@ -71,17 +71,34 @@ rotas.get('/clientes/:id/pedidos', assincrono(async (req, res) => {
     [id],
   );
 
+  // Uma consulta para os itens de todos os pedidos, já com o nome do produto,
+  // em vez de uma consulta por pedido e outra por item (problema N+1).
+  const itensPorPedido = new Map();
+  if (pedidos.length > 0) {
+    const itens = await consultar(
+      `SELECT i.pedido_id, i.produto_id, pr.nome AS produto_nome, i.quantidade, i.preco_unitario_centavos
+         FROM itens_pedido i
+         JOIN produtos pr ON pr.id = i.produto_id
+        WHERE i.pedido_id = ANY($1)
+        ORDER BY i.pedido_id, i.id`,
+      [pedidos.map((pedido) => pedido.id)],
+    );
+    for (const item of itens) {
+      if (!itensPorPedido.has(item.pedido_id)) itensPorPedido.set(item.pedido_id, []);
+      itensPorPedido.get(item.pedido_id).push(item);
+    }
+  }
+
   const resposta = [];
   for (const pedido of pedidos) {
-    const itens = await consultar('SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id', [pedido.id]);
+    const itens = itensPorPedido.get(pedido.id) || [];
 
     const itensFormatados = [];
     let total = 0;
     for (const item of itens) {
-      const [produto] = await consultar('SELECT * FROM produtos WHERE id = $1', [item.produto_id]);
       itensFormatados.push({
         produto_id: item.produto_id,
-        produto_nome: produto.nome,
+        produto_nome: item.produto_nome,
         quantidade: item.quantidade,
         preco_unitario_centavos: item.preco_unitario_centavos,
       });
