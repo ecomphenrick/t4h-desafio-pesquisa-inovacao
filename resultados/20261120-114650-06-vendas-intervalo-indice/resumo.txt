@@ -1,0 +1,17 @@
+Medição: 06-vendas-intervalo-indice
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        587
+Requisições/s:      8.43
+Tempo de resposta:  mediana 1406.2 ms | p95 6330.4 ms | p99 15833.0 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               159       729.4 ms      2116.0 ms     2534.6 ms     0.0%    
+cliente-por-email     87        1728.1 ms     2868.7 ms     4103.9 ms     0.0%    
+pedidos-do-cliente    118       1936.3 ms     5053.0 ms     6355.1 ms     0.0%    
+pedidos-por-status    82        2153.7 ms     12670.7 ms    16500.9 ms    0.0%    
+busca-produtos        93        1101.1 ms     2391.6 ms     2921.6 ms     0.0%    
+vendas-por-dia        40        2906.3 ms     8634.8 ms     9092.9 ms     0.0%    
+top-produtos          8         16935.3 ms    33951.9 ms    39653.6 ms    0.0%    
