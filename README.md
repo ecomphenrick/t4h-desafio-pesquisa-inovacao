@@ -4,6 +4,27 @@ Aplicação do desafio técnico da vaga de estágio em Pesquisa e Inovação da 
 
 A aplicação é a API de uma loja fictícia, em Node.js (Express) com PostgreSQL 16, rodando em containers. Ela funciona, mas fica lenta sob carga e gasta mais recursos do que deveria. Todos os dados são sintéticos e gerados na primeira subida: 100 mil clientes, 20 mil produtos, 500 mil pedidos e 1,5 milhão de itens de pedido.
 
+## Resultado deste trabalho
+
+**Problema:** sob carga, a aplicação atendia 2,06 requisições/s, com p95 de 34,6 s. O banco ficava com a CPU em 98% o tempo todo, enquanto a API esperava. O diagnóstico (saídas de `EXPLAIN ANALYZE` em [diagnostico/](diagnostico/)) mostrou que o banco fazia trabalho desnecessário: lia tabelas inteiras por falta de índice nas chaves estrangeiras, ordenava em disco, criava um processo novo a cada consulta (sem pool), repetia consultas em laço (N+1) e recalculava um relatório de 1,5 milhão de linhas a cada chamada.
+
+**Resultado:** oito mudanças, cada uma com commit, contrato verificado e três medições. Medianas de três execuções:
+
+| | Linha de base | Final (mudança 08) |
+|---|---|---|
+| Requisições/s | 2,06 | **21,00** (10,2x) |
+| p95 geral | 34.613 ms | **2.284 ms** (−93%) |
+| CPU média do banco | 98,4% | 88,8% |
+| Limite de memória da API | 256 MB | **128 MB** |
+
+Todas as respostas continuam iguais às da aplicação original (`scripts/verificar-contrato.sh comparar`).
+
+- Artigo: [artigo/artigo.md](artigo/artigo.md)
+- Cada mudança, com fontes, pastas de resultados e conclusão: [experimentos.md](experimentos.md)
+- Ideias pesquisadas e não testadas: [proximos-testes.md](proximos-testes.md)
+
+As instruções abaixo, para subir e medir a aplicação, continuam valendo.
+
 ## Prazo e entrega
 
 - **Prazo e entregas:** estão no enunciado enviado na largada
