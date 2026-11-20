@@ -1,0 +1,49 @@
+# Rota GET /pedidos?status=&pagina= (api/src/rotas.js:112-116). A carga sorteia pagina entre 1 e 1000 (carga/teste-carga.js:48); aqui pagina 500 = OFFSET 9980
+# data: 2026-11-19 23:57:49 -0300   commit: b16459c
+# condicao: banco ocioso (sem teste de carga), com os indices das mudancas 01 e 02
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "SELECT status, count(*) FROM pedidos GROUP BY status ORDER BY status;"
+  status   | count  
+-----------+--------
+ cancelado |  50000
+ entregue  | 125000
+ pago      | 300000
+ pendente  |  25000
+(4 rows)
+
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT count(*) AS total FROM pedidos WHERE status = 'pago';"
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=24749.75..24749.76 rows=1 width=8) (actual time=153.859..167.570 rows=1 loops=1)
+   ->  Gather  (cost=24749.54..24749.75 rows=2 width=8) (actual time=153.349..167.545 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=23749.54..23749.55 rows=1 width=8) (actual time=150.119..150.122 rows=1 loops=3)
+               ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=124549 width=0) (actual time=0.022..111.611 rows=100000 loops=3)
+                     Filter: (status = 'pago'::text)
+                     Rows Removed by Filter: 66667
+ Planning Time: 0.331 ms
+ Execution Time: 168.771 ms
+(10 rows)
+
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT * FROM pedidos WHERE status = 'pago' ORDER BY criado_em DESC, id DESC LIMIT 20 OFFSET 9980;"
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=34500.21..34502.54 rows=20 width=299) (actual time=723.167..810.038 rows=20 loops=1)
+   ->  Gather Merge  (cost=33335.79..62399.25 rows=249098 width=299) (actual time=712.253..809.126 rows=10000 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=32335.77..32647.14 rows=124549 width=299) (actual time=680.432..682.224 rows=3442 loops=3)
+               Sort Key: criado_em DESC, id DESC
+               Sort Method: external merge  Disk: 30176kB
+               Worker 0:  Sort Method: external merge  Disk: 31184kB
+               Worker 1:  Sort Method: external merge  Disk: 30440kB
+               ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=124549 width=299) (actual time=0.093..244.836 rows=100000 loops=3)
+                     Filter: (status = 'pago'::text)
+                     Rows Removed by Filter: 66667
+ Planning Time: 0.555 ms
+ Execution Time: 815.553 ms
+(14 rows)
+
