@@ -1,0 +1,43 @@
+# Bug na coluna cpu_max do recursos.txt gerado por scripts/medir.sh
+# data: 2026-11-20 00:51:56 -0300   commit: 746ac32
+#
+# Sintoma: em resultados/20261120-002731-04-pool-conexoes/recursos.txt a cpu_media do banco (100.2%) e maior que a cpu_max (99.4%).
+# Na API isso acontece em todas as medicoes (ex.: cpu_media 18.0%, cpu_max 9.8%).
+#
+# Causa: scripts/medir.sh:106-109 remove o % com gsub e compara o valor como TEXTO.
+# Em ordem de texto, "99.4" > "108.8" (o caractere 9 vem depois do 1), entao o maximo
+# fica errado sempre que existem amostras com numero de digitos diferente (>= 10% ou >= 100%).
+# A media nao e afetada: soma_cpu += cpu converte para numero.
+#
+# Consequencia: cpu_max nao e confiavel e nao e usada no experimentos.md nem no artigo.
+# Toda comparacao de CPU usa cpu_media. O maximo real pode ser tirado do recursos.csv.
+# scripts/ e a regua do desafio e nao foi alterado.
+
+# comando: sed -n 105,110p scripts/medir.sh
+  NR > 1 {
+    nome = $2; cpu = $3; gsub(/%/, "", cpu)
+    split($4, partes, " / "); memoria = mib(partes[1])
+    amostras[nome]++; soma_cpu[nome] += cpu; soma_mem[nome] += memoria
+    if (cpu > max_cpu[nome]) max_cpu[nome] = cpu
+    if (memoria > max_mem[nome]) max_mem[nome] = memoria
+
+# comando: cat resultados/20261120-002731-04-pool-conexoes/recursos.txt
+container                            amostras  cpu_media    cpu_max    mem_media      mem_max
+desafio-performance-banco-1                31     100.2%      99.4%    431.5 MiB    475.3 MiB
+desafio-performance-api-1                  31      18.0%       9.8%     41.1 MiB     51.3 MiB
+
+cpu_percentual: 100% = 1 CPU inteira.
+
+# comando: maiores amostras brutas do banco no recursos.csv (ordem numerica)
+# grep banco resultados/20261120-002731-04-pool-conexoes/recursos.csv | cut -d, -f3 | sort -n | tail -3
+102.91%
+103.91%
+108.80%
+
+# comando: maior amostra bruta da API no recursos.csv (ordem numerica)
+# grep api resultados/20261120-002731-04-pool-conexoes/recursos.csv | cut -d, -f3 | sort -n | tail -1
+40.08%
+
+# comando: reproducao minima da comparacao de texto no awk
+# printf "x,108.80%%\nx,99.40%%\n" | awk -F, "{c=$2; gsub(/%/,\"\",c); if (c>m) m=c} END {print \"max:\", m}"
+max: 99.40
