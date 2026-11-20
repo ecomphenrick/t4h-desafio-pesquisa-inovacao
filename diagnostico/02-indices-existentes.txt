@@ -1,0 +1,12 @@
+# Indices existentes no banco original (todos os do schema public)
+# data: 2026-11-19 22:21:06 -0300   commit: 8df5669
+# comando: docker compose exec -T banco psql -U loja -d loja -c "SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname;"
+
+  tablename   |     indexname     |                                   indexdef                                    
+--------------+-------------------+-------------------------------------------------------------------------------
+ clientes     | clientes_pkey     | CREATE UNIQUE INDEX clientes_pkey ON public.clientes USING btree (id)
+ itens_pedido | itens_pedido_pkey | CREATE UNIQUE INDEX itens_pedido_pkey ON public.itens_pedido USING btree (id)
+ pedidos      | pedidos_pkey      | CREATE UNIQUE INDEX pedidos_pkey ON public.pedidos USING btree (id)
+ produtos     | produtos_pkey     | CREATE UNIQUE INDEX produtos_pkey ON public.produtos USING btree (id)
+(4 rows)
+
