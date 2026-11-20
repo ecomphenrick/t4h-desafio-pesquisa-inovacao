@@ -1,8 +1,8 @@
-# Uma API 9,7 vezes mais rápida com os mesmos recursos: o gargalo era o trabalho pedido ao banco, não a falta de hardware
+# Uma API 10 vezes mais rápida e com menos memória: o gargalo era o trabalho pedido ao banco, não a falta de hardware
 
 ## 1. Resumo
 
-A API de uma loja fictícia (Node.js + PostgreSQL, em Docker) atendia 2,06 requisições por segundo, com p95 de 34,6 s, e o banco ficava com a CPU em 98% o tempo todo. Em vez de aumentar recursos, reduzi o trabalho que cada requisição pede ao banco, em sete mudanças medidas uma a uma: índices em chaves estrangeiras e na ordenação, pool de conexões, fim do N+1, filtro de data que aproveita índice e uma *materialized view* para o relatório mais pesado. Resultado: 20,0 requisições por segundo (9,7x) e p95 de 2,1 s (−94%), com os mesmos limites de CPU e memória e as mesmas respostas.
+A API de uma loja fictícia (Node.js + PostgreSQL, em Docker) atendia 2,06 requisições por segundo, com p95 de 34,6 s, e o banco ficava com a CPU em 98% o tempo todo. Em vez de aumentar recursos, reduzi o trabalho que cada requisição pede ao banco, em sete mudanças medidas uma a uma: índices em chaves estrangeiras e na ordenação, pool de conexões, fim do N+1, filtro de data que aproveita índice e uma *materialized view* para o relatório mais pesado. Resultado: 21,0 requisições por segundo (10,2x) e p95 de 2,3 s (−93%), com as mesmas respostas. Com o trabalho reduzido, cortei pela metade o limite de memória da API (256 → 128 MB) sem perder desempenho: o sistema ficou mais rápido e mais barato.
 
 ## 2. Contexto e diagnóstico
 
@@ -71,6 +71,7 @@ Medianas de três execuções por versão, calculadas por script a partir de `re
 | 05-sem-n-mais-1 | ~22 consultas viram 3 | 11.257 → 6.448 | 7,85 → 8,09 | 98,1% / 423 MiB | [1](../resultados/20261120-112109-05-sem-n-mais-1/) [2](../resultados/20261120-112248-05-sem-n-mais-1/) [3](../resultados/20261120-112430-05-sem-n-mais-1/) | Rota alvo −56%; vazão igual; outras rotas pioraram |
 | 06-vendas-intervalo-indice | `::date` impede índice | 6.448 → 6.079 | 8,09 → 8,43 | 96,9% / 405 MiB | [1](../resultados/20261120-114331-06-vendas-intervalo-indice/) [2](../resultados/20261120-114510-06-vendas-intervalo-indice/) [3](../resultados/20261120-114650-06-vendas-intervalo-indice/) | Rota alvo −32%; sistema dentro da variação |
 | 07-mv-top-produtos | Relatório recalcula tudo | 6.079 → 2.107 | 8,43 → 20,00 | 92,4% / 458 MiB; API 37,6% | [1](../resultados/20261120-115430-07-mv-top-produtos/) [2](../resultados/20261120-115553-07-mv-top-produtos/) [3](../resultados/20261120-115717-07-mv-top-produtos/) | Maior ganho; todas as rotas melhoraram |
+| 08-api-128mb | API usa ~42 de 256 MiB: memória sobrando | 2.107 → 2.284 | 20,00 → 21,00 | 88,8% / 463 MiB; API 36,4 MiB (máx. 58,9) de 128 | [1](../resultados/20261120-150152-08-api-128mb/) [2](../resultados/20261120-150317-08-api-128mb/) [3](../resultados/20261120-150442-08-api-128mb/) | Desempenho mantido (dentro da variação); memória reservada total 768 → 640 MiB (−16,7%) |
 
 Três resultados contrariaram a expectativa. A mudança 03 deixou a rota alvo duas vezes mais rápida, mas não melhorou o sistema; a variação entre execuções (3,05 a 3,88 req/s) era maior que a diferença medida. Interpreto que o custo de abrir conexões, eliminado só na 04, escondia o efeito. A mudança 05 acelerou a rota de pedidos, mas não aumentou a vazão: depois dos índices, as consultas do N+1 já eram baratas, e o que pesava era a espera sequencial. As outras rotas pioraram, provavelmente porque a fila no banco saturado se redistribuiu. Por fim, a rota com só 2% da carga, top-produtos, era a que mais travava o banco: ao pré-agregá-la, todas as rotas ficaram mais rápidas e o banco saiu da saturação pela primeira vez.
 
@@ -78,7 +79,7 @@ Três resultados contrariaram a expectativa. A mudança 03 deixou a rota alvo du
 
 - **Dado desatualizado.** A *materialized view* devolve o mesmo resultado porque os dados do teste são estáticos. Numa loja real, uma venda nova só entraria no ranking depois de um `REFRESH`, que recalcula tudo [13]. Isso mudaria o que a rota faz. Se o negócio exigir ranking em tempo real, a conclusão sobre a mudança 07 cai.
 - **Escritas não medidas.** A carga só tem leituras. Os quatro índices novos nas tabelas deixam inserções e atualizações mais lentas, como mediu a PayFit [3], e eu não verifiquei quanto.
-- **Recursos.** A API agora usa ~75% do seu limite de CPU e o banco ~458 de 512 MiB: há pouca folga para reduzir custo sem perder desempenho.
+- **Recursos.** A memória da API tinha folga e foi reduzida pela metade. Já a CPU da API está em ~75% do limite e o banco usa ~463 de 512 MiB: cortar esses limites provavelmente custaria desempenho. Não testei.
 - **Medição.** Foram só três execuções por versão, numa única máquina (Windows + WSL 2). Encontrei também um erro no script de medição: a coluna `cpu_max` compara números como texto ([06](../diagnostico/06-bug-cpu-max-medir.txt)). Por isso usei apenas a CPU média.
 - **O que derrubaria a conclusão:** se, em outra máquina e com mais execuções, as vazões das mudanças 04 e 07 caíssem dentro da faixa das versões anteriores, os ganhos seriam ruído. Hoje, a pior execução de cada uma supera a melhor da versão anterior.
 
