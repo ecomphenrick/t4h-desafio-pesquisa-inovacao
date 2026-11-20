@@ -1,0 +1,22 @@
+# EXPLAIN ANALYZE da consulta de pedidos da rota GET /clientes/:id/pedidos (api/src/rotas.js:70)
+# data: 2026-11-19 23:13:25 -0300   commit: d837077
+# condicao: banco ocioso (sem teste de carga), com o indice da mudanca 01 (itens_pedido.pedido_id) ja aplicado
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT * FROM pedidos WHERE cliente_id = 1 ORDER BY criado_em DESC, id DESC;"
+
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Gather Merge  (cost=24438.20..24438.67 rows=4 width=300) (actual time=353.811..357.055 rows=5 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Sort  (cost=23438.18..23438.18 rows=2 width=300) (actual time=350.740..350.742 rows=2 loops=3)
+         Sort Key: criado_em DESC, id DESC
+         Sort Method: quicksort  Memory: 25kB
+         Worker 0:  Sort Method: quicksort  Memory: 25kB
+         Worker 1:  Sort Method: quicksort  Memory: 25kB
+         ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=2 width=300) (actual time=102.244..350.650 rows=2 loops=3)
+               Filter: (cliente_id = 1)
+               Rows Removed by Filter: 166665
+ Planning Time: 0.937 ms
+ Execution Time: 357.520 ms
+(13 rows)
+
