@@ -1,0 +1,30 @@
+# Mesmas consultas de diagnostico/04, depois da mudanca 03 (indice pedidos(status, criado_em DESC, id DESC))
+# data: 2026-11-20 00:12:03 -0300   commit: 6f531a5
+# condicao: banco ocioso (sem teste de carga)
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT count(*) AS total FROM pedidos WHERE status = 'pago';"
+                                                                                      QUERY PLAN                                                                                       
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=11286.03..11286.04 rows=1 width=8) (actual time=56.921..60.693 rows=1 loops=1)
+   ->  Gather  (cost=11285.81..11286.02 rows=2 width=8) (actual time=56.742..60.682 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=10285.81..10285.82 rows=1 width=8) (actual time=53.976..53.978 rows=1 loops=3)
+               ->  Parallel Index Only Scan using pedidos_status_criado_em_id_idx on pedidos  (cost=0.42..9973.87 rows=124778 width=0) (actual time=0.073..46.111 rows=100000 loops=3)
+                     Index Cond: (status = 'pago'::text)
+                     Heap Fetches: 29
+ Planning Time: 0.565 ms
+ Execution Time: 61.253 ms
+(10 rows)
+
+
+# comando: docker compose exec -T banco psql -U loja -d loja -c "EXPLAIN ANALYZE SELECT * FROM pedidos WHERE status = 'pago' ORDER BY criado_em DESC, id DESC LIMIT 20 OFFSET 9980;"
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2904.79..2910.61 rows=20 width=300) (actual time=36.748..36.851 rows=20 loops=1)
+   ->  Index Scan using pedidos_status_criado_em_id_idx on pedidos  (cost=0.42..87150.95 rows=299467 width=300) (actual time=0.055..36.380 rows=10000 loops=1)
+         Index Cond: (status = 'pago'::text)
+ Planning Time: 0.436 ms
+ Execution Time: 36.892 ms
+(5 rows)
+
